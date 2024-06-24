@@ -44,7 +44,7 @@ class ViT(nn.Module):
         self.pool = pool
 
         # Patch Embedding
-        self.patch_embedding = PatchEmbedding((num_patches_per_height, num_patches_per_width), patch_size, d_model, input_channels)
+        self.patch_embedding = PatchEmbedding((num_patches_per_height, num_patches_per_width), (patch_height, patch_width), d_model, input_channels)
         self.cls_token = nn.Parameter(torch.randn(1, 1, d_model))
         self.pos_embedding = nn.Parameter(torch.randn(1, num_patches + 1, d_model))
         
