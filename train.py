@@ -21,6 +21,7 @@ from .manager import CheckpointManager
 import statistics
 from tqdm import tqdm
 import fire
+import wandb
 from typing import Optional
 
 def setup(rank: int, world_size: int):
@@ -31,6 +32,23 @@ def setup(rank: int, world_size: int):
 
 def cleanup():
     dist.destroy_process_group()
+
+def clip_gradient_value_(paramters: torch.Tensor, clip_value: Optional[float] = None, norm_type: int = 2):
+    if isinstance(paramters, torch.Tensor):
+        paramters = [paramters]
+    paramters = list(filter(lambda p: p.grad is not None, paramters))
+    norm_type = float(norm_type)
+    if clip_value is not None:
+        clip_value = float(clip_value)
+
+    total_norm = 0
+    for p in paramters:
+        param_norm = p.grad.data.norm(norm_type)
+        total_norm += param_norm.item() ** norm_type
+        if clip_value is not None:
+            p.grad.data.clamp_(-clip_value, clip_value)
+    total_norm = total_norm ** (1. / norm_type)
+    return total_norm
 
 def train(rank: int,
           world_size: int,
@@ -58,11 +76,18 @@ def train(rank: int,
           d_model: int = 768, 
           n_heads: int = 12, 
           activation: str = 'gelu', 
-          dropout_p: float = 0.1
+          dropout_p: float = 0.1,
+          # Logging config
+          logging: bool = True,
+          project: str = "Vision_Transformer",
+          name: Optional[str] = None
         ):
     if rank == 0:
         if os.path.exists(saved_checkpoints) == False:
             os.makedirs(saved_checkpoints)
+
+        if logging:
+            wandb.init(project=project, name=name)
 
         checkpoint_manager = CheckpointManager(saved_checkpoints)
         n_steps = 0
@@ -102,7 +127,7 @@ def train(rank: int,
 
     if is_validation:
         val_dataset = ViTDataset(val_path, processor=processor, num_examples=num_val_samples)
-        val_sampler = DistributedSampler(val_dataset, num_replicas=world_size, rank=rank) if world_size > 1 else RandomSampler(val_dataset)
+        val_sampler = DistributedSampler(val_dataset, num_replicas=world_size, rank=rank) if world_size > 1 else None
         val_dataloader = DataLoader(val_dataset, batch_size=val_batch_size, sampler=val_sampler, collate_fn=collate_fn)
 
     scaler = GradScaler(enabled=fp16)
@@ -111,6 +136,7 @@ def train(rank: int,
 
     for epoch in range(num_epochs):
         train_losses = []
+        grad_norms = []
 
         if is_validation:
             val_losses = []
@@ -123,11 +149,13 @@ def train(rank: int,
             loss = criterion.cross_entropy_loss(outputs, y)
             scaler.scale(loss).backward()
             scaler.unscale_(optimizer)
+            grad_norm = clip_gradient_value_(model.parameters(), None)
             scaler.step(optimizer)
 
             scaler.update()
 
             train_losses.append(loss.item())
+            grad_norms.append(grad_norm)
 
             n_steps += 1
         
@@ -148,13 +176,22 @@ def train(rank: int,
 
         if rank == 0:
             train_loss = statistics.mean(train_losses)
+            gradient_norm = statistics.mean(grad_norms)
             print(f"Train Loss: {(train_loss):.4f}")
+            print(f"Gradient Norm: {(gradient_norm):.4f}")
+            wandb.log({
+                'train_loss': train_loss,
+                'gradient_norm': gradient_norm
+            }, n_steps)
             if is_validation:
                 val_loss = statistics.mean(val_losses)
                 val_score = statistics.mean(val_scores)
-
                 print(f"Val Loss: {(val_loss):.4f}")
                 print(f"Val Score: {(val_score):.4f}")
+                wandb.log({
+                    'val_loss': val_loss,
+                    'val_score': val_score
+                }, n_steps)
 
             if epoch % save_checkpoint_after == save_checkpoint_after - 1 or epoch == num_epochs - 1:
                 checkpoint_manager.save_checkpoint(model, optimizer, scheduler, n_steps, n_epochs)
