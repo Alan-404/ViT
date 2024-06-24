@@ -6,7 +6,7 @@ from sklearn.metrics import accuracy_score
 class ViTCriterion:
     def __init__(self) -> None:
         pass
-    def cross_entropy_loss(self, logits: torch.Tensor, labels: torch.Tensor):
+    def cross_entropy_loss(self, logits: torch.Tensor, labels: torch.Tensor) -> torch.Tensor:
         F.cross_entropy(logits, labels)
 
 class ViTMetric:
