@@ -1,7 +1,9 @@
 import torch
 import torch.nn.functional as F
 
-from sklearn.metrics import accuracy_score
+import numpy as np
+
+from typing import Union, List
 
 class ViTCriterion:
     def __init__(self) -> None:
@@ -13,5 +15,12 @@ class ViTMetric:
     def __init__(self) -> None:
         pass
 
-    def accuracy(self, preds: torch.Tensor, labels: torch.Tensor):
-        accuracy_score(labels.numpy(), preds.numpy())
+    def accuracy_score(self, preds: Union[torch.Tensor, np.ndarray, List[str], List[int]], labels: Union[torch.Tensor, np.ndarray, List[str], List[int]]):
+        if isinstance(preds, List):
+            preds = np.array(preds)
+            labels = np.array(labels)
+        elif isinstance(preds, torch.Tensor):
+            preds = preds.cpu().numpy()
+            labels = labels.cpu().numpy()
+
+        return np.count_nonzero(preds == labels) / len(preds)

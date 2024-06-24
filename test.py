@@ -64,17 +64,20 @@ def test(
     
     metric = ViTMetric()
     preds = []
-    scores = []
 
     model.eval()
-    for (x, y) in tqdm(dataloader):
+    for x in tqdm(dataloader):
         with torch.inference_mode():
             outputs = model(x)
         
         predictions = torch.max(outputs, dim=-1)
-        scores.append(metric.accuracy(predictions, y))
         for prediction in predictions:
             preds.append(processor.idx_to_label(prediction.cpu().numpy()))
+
+    labels = dataset.prompts['label'].to_list()
+    score = metric.accuracy_score(preds, labels)
+
+    print(f"Test Accuracy Score: {(score * 100):.2f}")
 
     dataset.prompts['prediction'] = preds
     dataset.prompts.to_csv(saved_path, index=False)

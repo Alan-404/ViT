@@ -36,12 +36,11 @@ class ViTCollate:
         self.training = training
 
     def __call__(self, batch: Tuple[List[torch.Tensor], List[str]]) -> Tuple[torch.Tensor, torch.Tensor]:
-        images, labels = zip(*batch)
-
-        images = self.processor(images)
-
         if self.training:
+            images, labels = zip(*batch)
+            images = self.processor(images)
             labels = self.processor.as_target(labels)
             return images, labels
         else:
+            images = self.processor(batch)
             return images

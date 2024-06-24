@@ -48,15 +48,4 @@ class CheckpointManager:
     def load_model(self, checkpoint_path: str, model: nn.Module):
         checkpoint = torch.load(checkpoint_path, map_location='cpu')
         model.load_state_dict(checkpoint['model'])
-
-class EarlyStoppingManager:
-    def __init__(self, n_patiences: int = 3, condition: str = "up") -> None:
-        self.n_patiences = n_patiences
-        self.condition = condition
-
-        self.count = 0
-
-    def __call__(self):
-        pass
-
     
