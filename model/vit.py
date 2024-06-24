@@ -30,9 +30,12 @@ class ViT(nn.Module):
                  dropout_p: float = 0.,
                  pool: str = 'cls') -> None:
         super().__init__()
+        input_size = (input_size, input_size) if isinstance(input_size, int) else input_size
+        patch_size = (patch_size, patch_size) if isinstance(patch_size, int) else patch_size
+
         # Input and Patch Size Config
-        image_height, image_width = (input_size, input_size) if isinstance(input_size, int) else input_size
-        patch_height, patch_width = (patch_size, patch_size) if isinstance(patch_size, int) else patch_size
+        image_height, image_width = input_size
+        patch_height, patch_width = patch_size
 
         num_patches_per_width = image_width // patch_width
         num_patches_per_height = image_height // patch_height
@@ -44,7 +47,7 @@ class ViT(nn.Module):
         self.pool = pool
 
         # Patch Embedding
-        self.patch_embedding = PatchEmbedding((num_patches_per_height, num_patches_per_width), (patch_height, patch_width), d_model, input_channels)
+        self.patch_embedding = PatchEmbedding((num_patches_per_height, num_patches_per_width), patch_size, d_model, input_channels)
         self.cls_token = nn.Parameter(torch.randn(1, 1, d_model))
         self.pos_embedding = nn.Parameter(torch.randn(1, num_patches + 1, d_model))
         
