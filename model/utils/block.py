@@ -2,8 +2,8 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
-from model.utils.attention import MultiHeadAttention
-from model.utils.activation import activations
+from .attention import MultiHeadAttention
+from .activation import activations
 from typing import Optional
 
 class EncoderBlock(nn.Module):

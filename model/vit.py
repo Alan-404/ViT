@@ -2,8 +2,8 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
-from model.modules.embedding import PatchEmbedding
-from model.modules.encoder import Encoder
+from ..model.modules.embedding import PatchEmbedding
+from ..model.modules.encoder import Encoder
 
 from typing import Union, List, Tuple
 

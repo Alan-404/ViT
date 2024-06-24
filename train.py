@@ -10,8 +10,8 @@ from torch.nn.parallel.distributed import DistributedDataParallel as DDP
 from torch.utils.data import DataLoader
 from torch.utils.data.distributed import DistributedSampler
 
-from model.vit import ViT
-from processing.processor import ViTProcessor
+from .model.vit import ViT
+from .processing.processor import ViTProcessor
 
 from typing import Optional
 

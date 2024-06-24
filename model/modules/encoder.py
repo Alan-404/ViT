@@ -1,7 +1,7 @@
 import torch
 import torch.nn as nn
 
-from model.utils.block import EncoderBlock
+from ..utils.block import EncoderBlock
 
 from typing import Optional
 
