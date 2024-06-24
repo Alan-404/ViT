@@ -144,7 +144,6 @@ def train(rank: int,
                     val_losses.append(loss)
                     val_scores.append(score)
                     
-
         n_epochs += 1
 
         if rank == 0:

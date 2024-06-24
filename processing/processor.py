@@ -30,6 +30,9 @@ class ViTProcessor:
         image = torch.tensor(np.array(image)).transpose(0, 2)
 
         return image
+    
+    def idx_to_label(self, index: int):
+        return self.labels[index]
 
     def as_target(self, labels: List[str]):
         ids = []

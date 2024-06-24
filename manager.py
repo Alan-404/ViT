@@ -6,12 +6,15 @@ import torch.nn as nn
 import torch.optim as optim
 import torch.optim.lr_scheduler as lr_scheduler
 
-class CheckpointManager:
-    def __init__(self, saved_folder: str, num_saved: int = 3) -> None:
-        self.saved_folder = saved_folder
-        self.num_saved = num_saved
+from typing import Optional
 
-        self.saved_checkpoints = []
+class CheckpointManager:
+    def __init__(self, saved_folder: Optional[str] = None, num_saved: int = 3) -> None:
+        if saved_folder is not None:
+            self.saved_folder = saved_folder
+            self.num_saved = num_saved
+
+            self.saved_checkpoints = []
 
     def load_checkpoint(self, checkpoint_path: str, model: nn.Module, optimizer: optim.Optimizer, scheduler: lr_scheduler.LRScheduler):
         checkpoint = torch.load(checkpoint_path, map_location='cpu')
@@ -41,6 +44,10 @@ class CheckpointManager:
         torch.save(data, f"{self.saved_folder}/{n_steps}.pt")
 
         self.saved_checkpoints(n_steps)
+
+    def load_model(self, checkpoint_path: str, model: nn.Module):
+        checkpoint = torch.load(checkpoint_path, map_location='cpu')
+        model.load_state_dict(checkpoint['model'])
 
 class EarlyStoppingManager:
     def __init__(self, n_patiences: int = 3, condition: str = "up") -> None:
