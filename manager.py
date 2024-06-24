@@ -41,3 +41,15 @@ class CheckpointManager:
         torch.save(data, f"{self.saved_folder}/{n_steps}.pt")
 
         self.saved_checkpoints(n_steps)
+
+class EarlyStoppingManager:
+    def __init__(self, n_patiences: int = 3, condition: str = "up") -> None:
+        self.n_patiences = n_patiences
+        self.condition = condition
+
+        self.count = 0
+
+    def __call__(self):
+        pass
+
+    
