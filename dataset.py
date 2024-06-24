@@ -1,7 +1,7 @@
 import torch
 from torch.utils.data import Dataset
 
-from processing.processor import ViTProcessor
+from .processing.processor import ViTProcessor
 
 import pandas as pd
 from typing import Optional, Tuple, List
