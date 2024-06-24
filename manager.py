@@ -6,7 +6,7 @@ import torch.nn as nn
 import torch.optim as optim
 import torch.optim.lr_scheduler as lr_scheduler
 
-class CheckpoinitManager:
+class CheckpointManager:
     def __init__(self, saved_folder: str, num_saved: int = 3) -> None:
         self.saved_folder = saved_folder
         self.num_saved = num_saved

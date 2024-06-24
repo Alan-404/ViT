@@ -15,9 +15,10 @@ from torch.cuda.amp import GradScaler, autocast
 from .model.vit import ViT
 from .processing.processor import ViTProcessor
 from .dataset import ViTCollate, ViTDataset
-from .evaluation import ViTCriterion
-from .manager import CheckpoinitManager
+from .evaluation import ViTCriterion, ViTMetric
+from .manager import CheckpointManager
 
+import statistics
 from tqdm import tqdm
 import fire
 from typing import Optional
@@ -63,7 +64,7 @@ def train(rank: int,
         if os.path.exists(saved_checkpoints) == False:
             os.makedirs(saved_checkpoints)
 
-        checkpoint_manager = CheckpoinitManager(saved_checkpoints)
+        checkpoint_manager = CheckpointManager(saved_checkpoints)
         n_steps = 0
         n_epochs = 0
 
@@ -97,13 +98,26 @@ def train(rank: int,
     train_sampler = DistributedSampler(dataset=train_dataset, num_replicas=world_size, rank=rank, shuffle=True) if world_size > 1 else RandomSampler(train_dataset)
     train_dataloader = DataLoader(dataset=train_dataset, batch_size=train_batch_size, sampler=train_sampler, collate_fn=collate_fn)
 
+    is_validation = val_path is not None and os.path.exists(val_path)
+
+    if is_validation:
+        val_dataset = ViTDataset(val_path, processor=processor, num_examples=num_val_samples)
+        val_sampler = DistributedSampler(val_dataset, num_replicas=world_size, rank=rank) if world_size > 1 else RandomSampler(val_dataset)
+        val_dataloader = DataLoader(val_dataset, batch_size=val_batch_size, sampler=val_sampler, collate_fn=collate_fn)
+
     scaler = GradScaler(enabled=fp16)
     criterion = ViTCriterion()
+    metric = ViTMetric()
 
     for epoch in range(num_epochs):
         train_losses = []
 
-        for (x, y) in tqdm(train_dataloader):
+        if is_validation:
+            val_losses = []
+            val_scores = []
+        
+        model.train()
+        for (x, y) in tqdm(train_dataloader, leave=False):
             with autocast(enabled=fp16):
                 outputs = model(x)
             loss = criterion.cross_entropy_loss(outputs, y)
@@ -116,10 +130,33 @@ def train(rank: int,
             train_losses.append(loss.item())
 
             n_steps += 1
+        
+        if is_validation:
+            model.eval()
+            for (x, y) in tqdm(val_dataloader, leave=False):
+                with torch.no_grad():
+                    with autocast(enabled=fp16):
+                        outputs = model(x)
+                    loss = criterion.cross_entropy_loss(outputs, y).item()
+                    preds = torch.argmax(outputs, dim=-1)
+                    score = metric.accuracy(preds.cpu().numpy(), y.cpu().numpy())
+
+                    val_losses.append(loss)
+                    val_scores.append(score)
+                    
 
         n_epochs += 1
 
         if rank == 0:
+            train_loss = statistics.mean(train_losses)
+            print(f"Train Loss: {(train_loss):.4f}")
+            if is_validation:
+                val_loss = statistics.mean(val_losses)
+                val_score = statistics.mean(val_scores)
+
+                print(f"Val Loss: {(val_loss):.4f}")
+                print(f"Val Score: {(val_score):.4f}")
+
             if epoch % save_checkpoint_after == save_checkpoint_after - 1 or epoch == num_epochs - 1:
                 checkpoint_manager.save_checkpoint(model, optimizer, scheduler, n_steps, n_epochs)
 
@@ -132,7 +169,7 @@ def main(
           num_epochs: int = 1,
           train_batch_size: int = 1,
           num_train_samples: Optional[int] = None,
-          lr: float = 7e-5,
+          lr: float = 2e-4,
           fp16: bool = True,
           # Checkpoint Config
           checkpoint: Optional[str] = None,
@@ -177,4 +214,7 @@ def main(
             join=True
         )
     else:
-        print("NOT SUPPORT CPU")
+        print("NOT SUPPORT FOR CPU")
+
+if __name__ == '__main__':
+    fire.Fire(main)
